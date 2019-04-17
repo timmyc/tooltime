@@ -1,0 +1,22 @@
+{
+  "name": "tooltime",
+  "version": "1.0.0",
+  "description": "timmy's random tools",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "timmydcrawford@gmail.com",
+  "license": "ISC",
+  "bin": {
+    "tooltime": "./index.js"
+  },
+  "dependencies": {
+    "clipboardy": "^1.2.2",
+    "commander": "^2.12.1",
+    "lodash": "^4.17.10",
+    "request": "^2.87.0",
+    "urldecode": "^1.0.1",
+    "urlencode": "^1.1.0"
+  }
+}
