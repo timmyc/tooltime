@@ -8,7 +8,12 @@ const urldecode = require( 'urldecode' );
 const request = require( 'request' );
 const _ = require( 'lodash' );
 
-const secretGitHubToken = process.env.GH_API_TOKEN;
+const headers = {
+  'Content-Type': 'application/json;charset=UTF-8',
+  'Authorization': `token ${process.env.GH_API_TOKEN}`,
+  'Accept': 'application/vnd.github.inertia-preview+json',
+  'User-Agent': 'request'
+};
 
 const encodeString = ( string ) => {
 	const input = string && string.length ? string : clipboardy.readSync();
@@ -29,12 +34,7 @@ const decodeString = ( string ) => {
 const projectColumns = ( projectId ) => {
 	const options = {
 		url: 'https://api.github.com/projects/1492664/columns',
-		headers: {
-			'Content-Type': 'application/json;charset=UTF-8',
-			'Authorization': `token ${secretGitHubToken}`,
-			'Accept': 'application/vnd.github.inertia-preview+json',
-			'User-Agent': 'request'
-		}
+		headers,
 	}
 
 	request( options, ( error, response, body ) => {
@@ -68,12 +68,7 @@ const getLabels = labels => {
 const getPullRequest = ( content_url ) => {
   const options = {
     url: content_url,
-    headers: {
-      'Content-Type': 'application/json;charset=UTF-8',
-      'Authorization': `token ${secretGitHubToken}`,
-      'Accept': 'application/vnd.github.inertia-preview+json',
-      'User-Agent': 'request'
-    }
+    headers
   }
 
   request( options, ( error, response, body ) => {
@@ -97,12 +92,7 @@ const getPullRequest = ( content_url ) => {
 const columnCards = ( columnId ) => {
 	const options = {
 		url: `https://api.github.com/projects/columns/${columnId}/cards`,
-		headers: {
-			'Content-Type': 'application/json;charset=UTF-8',
-			'Authorization': `token ${secretGitHubToken}`,
-			'Accept': 'application/vnd.github.inertia-preview+json',
-			'User-Agent': 'request'
-		}
+		headers
 	}
 
 	request( options, ( error, response, body ) => {
