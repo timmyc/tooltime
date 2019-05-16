@@ -8,7 +8,7 @@ const urldecode = require( 'urldecode' );
 const request = require( 'request' );
 const _ = require( 'lodash' );
 
-const secretGitHubToken = 'put your awesome github token here';
+const secretGitHubToken = process.env.GH_API_TOKEN;
 
 const encodeString = ( string ) => {
 	const input = string && string.length ? string : clipboardy.readSync();
@@ -49,6 +49,51 @@ const projectColumns = ( projectId ) => {
 	} );
 }
 
+const getPullRequestType = labels => {
+	const typeLabel = labels.find( label => label.name.includes( '[Type]' ) );
+	if ( ! typeLabel ) {
+		return 'Dev';
+	}
+	return typeLabel.name.replace( '[Type] ', '' );
+};
+
+const getLabels = labels => {
+	return labels
+		.filter( label => ! /\[.*\]/.test( label.name ) )
+		.map( label => label.name )
+		.join( ', ' );
+
+};
+
+const getPullRequest = ( content_url ) => {
+  const options = {
+    url: content_url,
+    headers: {
+      'Content-Type': 'application/json;charset=UTF-8',
+      'Authorization': `token ${secretGitHubToken}`,
+      'Accept': 'application/vnd.github.inertia-preview+json',
+      'User-Agent': 'request'
+    }
+  }
+
+  request( options, ( error, response, body ) => {
+    if ( ! error && response.statusCode == 200 ) {
+      const data = JSON.parse( body );
+      if ( data.pull_request ) {
+      	const type = getPullRequestType( data.labels );
+      	const labels = getLabels( data.labels );
+      	const labelTag = labels.length ? `(${ labels })` : '';
+      	const entry = `- ${ type }: ${ data.title } @${ data.user.login } #${ data.number } ${ labelTag }`
+        console.log( entry );
+			}
+    } else {
+      console.log( '🤯' );
+      console.log( content_url );
+      console.log( response.statusMessage );
+    }
+  } );
+};
+
 const columnCards = ( columnId ) => {
 	const options = {
 		url: `https://api.github.com/projects/columns/${columnId}/cards`,
@@ -63,8 +108,7 @@ const columnCards = ( columnId ) => {
 	request( options, ( error, response, body ) => {
 		if ( ! error && response.statusCode == 200 ) {
 			const data = JSON.parse( body );
-			const cards = _.map( data, ( card ) => { console.log( card.content_url.replace( 'https://api.github.com/repos/', 'https://github.com/' ) + '\r' ); } );
-			//console.log( cards.join( '\r' ) );
+			data.forEach( card => getPullRequest( card.content_url ) )
 		} else {
 			console.log( '🤯' );
 			console.log( response.statusMessage );
