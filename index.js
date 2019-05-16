@@ -8,6 +8,8 @@ const urldecode = require( 'urldecode' );
 const request = require( 'request' );
 const _ = require( 'lodash' );
 
+let collaborators = [];
+
 const headers = {
   'Content-Type': 'application/json;charset=UTF-8',
   'Authorization': `token ${process.env.GH_API_TOKEN}`,
@@ -65,6 +67,20 @@ const getLabels = labels => {
 
 };
 
+const getCollaborator = ( username ) => {
+  request( {
+    url: `https://api.github.com/orgs/woocommerce/members/${ username }`,
+    headers
+  }, ( error, response ) => {
+    if ( response.statusCode == 204 ) {
+      console.log( 'is a member' );
+    } else {
+      console.log( '🤯' );
+      console.log( response.statusMessage );
+    }
+  } );
+}
+
 const getPullRequest = ( content_url ) => {
   const options = {
     url: content_url,
@@ -78,7 +94,9 @@ const getPullRequest = ( content_url ) => {
       	const type = getPullRequestType( data.labels );
       	const labels = getLabels( data.labels );
       	const labelTag = labels.length ? `(${ labels })` : '';
-      	const entry = `- ${ type }: ${ data.title } @${ data.user.login } #${ data.number } ${ labelTag }`
+        const collaborator = collaborators.find( user => user.login === data.user.login );
+      	const authorTag = !! collaborator ? '' : `@${ data.user.login }`;
+      	const entry = `- ${ type }: ${ data.title } ${ authorTag } #${ data.number } ${ labelTag }`;
         console.log( entry );
 			}
     } else {
@@ -90,20 +108,20 @@ const getPullRequest = ( content_url ) => {
 };
 
 const columnCards = ( columnId ) => {
-	const options = {
-		url: `https://api.github.com/projects/columns/${columnId}/cards`,
-		headers
-	}
+  const options = {
+    url: `https://api.github.com/projects/columns/${columnId}/cards`,
+    headers
+  }
 
-	request( options, ( error, response, body ) => {
-		if ( ! error && response.statusCode == 200 ) {
-			const data = JSON.parse( body );
-			data.forEach( card => getPullRequest( card.content_url ) )
-		} else {
-			console.log( '🤯' );
-			console.log( response.statusMessage );
-		}
-	} );
+  request( options, ( error, response, body ) => {
+    if ( ! error && response.statusCode == 200 ) {
+      const data = JSON.parse( body );
+      data.forEach( card => getPullRequest( card.content_url ) )
+    } else {
+      console.log( '🤯' );
+      console.log( response.statusMessage );
+    }
+  } );
 }
 
 program
@@ -126,6 +144,11 @@ program
 	.command( 'cards' )
 	.description( 'get cards' )
 	.action( columnCards );
+
+// program
+// 	.command( 'changelog' )
+// 	.description( 'create changelog' )
+// 	.action( columnCards )
 
 program.parse( process.argv );
 
