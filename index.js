@@ -6,6 +6,7 @@ const program = require( 'commander' );
 const urlencode = require( 'urlencode' );
 const urldecode = require( 'urldecode' );
 const request = require( 'request' );
+const requestPromise = require('request-promise');
 const _ = require( 'lodash' );
 
 let collaborators = [];
@@ -66,62 +67,65 @@ const getLabels = labels => {
 		.join( ', ' );
 
 };
-
-const getCollaborator = ( username ) => {
-  request( {
+const isCollaborator = async ( username ) => {
+  return requestPromise( {
     url: `https://api.github.com/orgs/woocommerce/members/${ username }`,
-    headers
-  }, ( error, response ) => {
-    if ( response.statusCode == 204 ) {
-      console.log( 'is a member' );
-    } else {
-      console.log( '🤯' );
-      console.log( response.statusMessage );
-    }
-  } );
+    headers,
+    resolveWithFullResponse: true
+  } ).then( response => {
+  	return response.statusCode === 204;
+	} )
+    .catch( err => {
+    	if ( err.statusCode !== 404 ) {
+        console.log( '🤯' );
+        console.log( err.message );
+			}
+    });
 }
 
-const getPullRequest = ( content_url ) => {
+const writeEntry = async ( content_url ) => {
   const options = {
     url: content_url,
-    headers
+    headers,
+    json: true
   }
-
-  request( options, ( error, response, body ) => {
-    if ( ! error && response.statusCode == 200 ) {
-      const data = JSON.parse( body );
+  return requestPromise( options )
+		.then( async data => {
       if ( data.pull_request ) {
-      	const type = getPullRequestType( data.labels );
-      	const labels = getLabels( data.labels );
-      	const labelTag = labels.length ? `(${ labels })` : '';
-        const collaborator = collaborators.find( user => user.login === data.user.login );
-      	const authorTag = !! collaborator ? '' : `@${ data.user.login }`;
-      	const entry = `- ${ type }: ${ data.title } ${ authorTag } #${ data.number } ${ labelTag }`;
-        console.log( entry );
+      	const collaborator = await isCollaborator( data.user.login );
+        const type = getPullRequestType( data.labels );
+        const labels = getLabels( data.labels );
+        const labelTag = labels.length ? `(${ labels })` : '';
+        const authorTag = !! collaborator ? '' : `👏 @${ data.user.login }`;
+        const entry = `- ${ type }: ${ data.title } #${ data.number } ${ labelTag } ${ authorTag }`;
+      	console.log( entry );
 			}
-    } else {
+		} )
+    .catch( err => {
       console.log( '🤯' );
-      console.log( content_url );
-      console.log( response.statusMessage );
-    }
-  } );
+      console.log( err.message );
+    });
 };
 
-const columnCards = ( columnId ) => {
+const columnCards = async ( columnId ) => {
   const options = {
     url: `https://api.github.com/projects/columns/${columnId}/cards`,
-    headers
+    headers,
+    json: true
   }
 
-  request( options, ( error, response, body ) => {
-    if ( ! error && response.statusCode == 200 ) {
-      const data = JSON.parse( body );
-      data.forEach( card => getPullRequest( card.content_url ) )
-    } else {
+  return requestPromise( options )
+    .catch( err => {
       console.log( '🤯' );
-      console.log( response.statusMessage );
-    }
-  } );
+      console.log( err.message );
+    });
+}
+
+const makeChangelog = async columnId => {
+	const cards = await columnCards( columnId );
+  cards.forEach( async card => {
+  	await writeEntry( card.content_url );
+	} );
 }
 
 program
@@ -141,14 +145,9 @@ program
 	.action( projectColumns );
 
 program
-	.command( 'cards' )
-	.description( 'get cards' )
-	.action( columnCards );
-
-// program
-// 	.command( 'changelog' )
-// 	.description( 'create changelog' )
-// 	.action( columnCards )
+	.command( 'changelog' )
+	.description( 'create changelog' )
+	.action( makeChangelog );
 
 program.parse( process.argv );
 
