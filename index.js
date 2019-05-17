@@ -9,8 +9,6 @@ const request = require( 'request' );
 const requestPromise = require('request-promise');
 const _ = require( 'lodash' );
 
-let collaborators = [];
-
 const headers = {
   'Content-Type': 'application/json;charset=UTF-8',
   'Authorization': `token ${process.env.GH_API_TOKEN}`,
