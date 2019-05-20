@@ -6,9 +6,15 @@ const program = require( 'commander' );
 const urlencode = require( 'urlencode' );
 const urldecode = require( 'urldecode' );
 const request = require( 'request' );
+const requestPromise = require('request-promise');
 const _ = require( 'lodash' );
 
-const secretGitHubToken = 'put your awesome github token here';
+const headers = {
+  'Content-Type': 'application/json;charset=UTF-8',
+  'Authorization': `token ${process.env.GH_API_TOKEN}`,
+  'Accept': 'application/vnd.github.inertia-preview+json',
+  'User-Agent': 'request'
+};
 
 const encodeString = ( string ) => {
 	const input = string && string.length ? string : clipboardy.readSync();
@@ -29,12 +35,7 @@ const decodeString = ( string ) => {
 const projectColumns = ( projectId ) => {
 	const options = {
 		url: 'https://api.github.com/projects/1492664/columns',
-		headers: {
-			'Content-Type': 'application/json;charset=UTF-8',
-			'Authorization': `token ${secretGitHubToken}`,
-			'Accept': 'application/vnd.github.inertia-preview+json',
-			'User-Agent': 'request'
-		}
+		headers,
 	}
 
 	request( options, ( error, response, body ) => {
@@ -49,26 +50,79 @@ const projectColumns = ( projectId ) => {
 	} );
 }
 
-const columnCards = ( columnId ) => {
-	const options = {
-		url: `https://api.github.com/projects/columns/${columnId}/cards`,
-		headers: {
-			'Content-Type': 'application/json;charset=UTF-8',
-			'Authorization': `token ${secretGitHubToken}`,
-			'Accept': 'application/vnd.github.inertia-preview+json',
-			'User-Agent': 'request'
-		}
+const getPullRequestType = labels => {
+	const typeLabel = labels.find( label => label.name.includes( '[Type]' ) );
+	if ( ! typeLabel ) {
+		return 'Dev';
 	}
+	return typeLabel.name.replace( '[Type] ', '' );
+};
 
-	request( options, ( error, response, body ) => {
-		if ( ! error && response.statusCode == 200 ) {
-			const data = JSON.parse( body );
-			const cards = _.map( data, ( card ) => { console.log( card.content_url.replace( 'https://api.github.com/repos/', 'https://github.com/' ) + '\r' ); } );
-			//console.log( cards.join( '\r' ) );
-		} else {
-			console.log( '🤯' );
-			console.log( response.statusMessage );
-		}
+const getLabels = labels => {
+	return labels
+		.filter( label => ! /\[.*\]/.test( label.name ) )
+		.map( label => label.name )
+		.join( ', ' );
+
+};
+const isCollaborator = async ( username ) => {
+  return requestPromise( {
+    url: `https://api.github.com/orgs/woocommerce/members/${ username }`,
+    headers,
+    resolveWithFullResponse: true
+  } ).then( response => {
+  	return response.statusCode === 204;
+	} )
+    .catch( err => {
+    	if ( err.statusCode !== 404 ) {
+        console.log( '🤯' );
+        console.log( err.message );
+			}
+    });
+}
+
+const writeEntry = async ( content_url ) => {
+  const options = {
+    url: content_url,
+    headers,
+    json: true
+  }
+  return requestPromise( options )
+		.then( async data => {
+      if ( data.pull_request ) {
+      	const collaborator = await isCollaborator( data.user.login );
+        const type = getPullRequestType( data.labels );
+        const labels = getLabels( data.labels );
+        const labelTag = labels.length ? `(${ labels })` : '';
+        const authorTag = !! collaborator ? '' : `👏 @${ data.user.login }`;
+        const entry = `- ${ type }: ${ data.title } #${ data.number } ${ labelTag } ${ authorTag }`;
+      	console.log( entry );
+			}
+		} )
+    .catch( err => {
+      console.log( '🤯' );
+      console.log( err.message );
+    });
+};
+
+const columnCards = async ( columnId ) => {
+  const options = {
+    url: `https://api.github.com/projects/columns/${columnId}/cards`,
+    headers,
+    json: true
+  }
+
+  return requestPromise( options )
+    .catch( err => {
+      console.log( '🤯' );
+      console.log( err.message );
+    });
+}
+
+const makeChangelog = async columnId => {
+	const cards = await columnCards( columnId );
+  cards.forEach( async card => {
+  	await writeEntry( card.content_url );
 	} );
 }
 
@@ -89,9 +143,9 @@ program
 	.action( projectColumns );
 
 program
-	.command( 'cards' )
-	.description( 'get cards' )
-	.action( columnCards );
+	.command( 'changelog' )
+	.description( 'create changelog' )
+	.action( makeChangelog );
 
 program.parse( process.argv );
 
