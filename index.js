@@ -8,6 +8,7 @@ const urldecode = require( 'urldecode' );
 const request = require( 'request' );
 const requestPromise = require('request-promise');
 const _ = require( 'lodash' );
+const octokit = require( '@octokit/rest' )();
 
 const headers = {
   'Content-Type': 'application/json;charset=UTF-8',
@@ -105,26 +106,18 @@ const writeEntry = async ( content_url ) => {
     });
 };
 
-const columnCards = async ( columnId ) => {
-  const options = {
-    url: `https://api.github.com/projects/columns/${columnId}/cards`,
-    headers,
-    json: true
-  }
-
-  return requestPromise( options )
-    .catch( err => {
-      console.log( '🤯' );
-      console.log( err.message );
-    });
-}
-
-const makeChangelog = async columnId => {
-	const cards = await columnCards( columnId );
-  cards.forEach( async card => {
-  	await writeEntry( card.content_url );
-	} );
-}
+const makeChangelog = async column_id => {
+  octokit.paginate(
+  	'GET /projects/columns/:column_id/cards',
+		{ headers, column_id },
+		response => response.data.forEach( async card => {
+      await writeEntry( card.content_url );
+    } )
+	).catch( err => {
+    console.log( '🤯' );
+    console.log( err.message );
+  })
+};
 
 program
 	.version( '0.0.1' )
@@ -148,5 +141,3 @@ program
 	.action( makeChangelog );
 
 program.parse( process.argv );
-
-//if ( program.args.length === 0 ) program.help();
