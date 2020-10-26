@@ -53,7 +53,7 @@ const repoCommits = ( repo, since, until ) => {
 		url: `https://api.github.com/repos/${repo}/commits?since=${since}&until=${until}`,
 		headers: {
 			'Content-Type': 'application/json;charset=UTF-8',
-			'Authorization': `token ${secretGitHubToken}`,
+			'Authorization': `token ${process.env.GH_API_TOKEN}`,
 			'Accept': 'application/vnd.github.inertia-preview+json',
 			'User-Agent': 'request'
 		}
