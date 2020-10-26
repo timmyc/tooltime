@@ -32,6 +32,58 @@ const decodeString = ( string ) => {
 	console.log( `${ enocded } copied to clipboard 💫` );
 }
 
+const authorWPCOMMap = {
+	'Timmy Crawford': 'timmydcrawford',
+	'Jeff Stieler': 'jeffstieler',
+	'Joshua T Flowers': 'joshuaflow',
+	'Fernando': 'fermarichal',
+	'Bec Scott': 'becdetat',
+	'Paul Sealock': 'psealk',
+	'Matt Sherman': 'mattormeeple',
+	'Sam Seay': 'samuelseay',
+}
+const getWPCOMFromAuthor = function( name ) {
+	return authorWPCOMMap[ name ] ? `@${authorWPCOMMap[name]}` : name;
+} 
+
+const repoCommits = ( repo, since, until ) => {
+	console.log( 'since', since );
+	console.log( 'until', until ); 
+	const options = {
+		url: `https://api.github.com/repos/${repo}/commits?since=${since}&until=${until}`,
+		headers: {
+			'Content-Type': 'application/json;charset=UTF-8',
+			'Authorization': `token ${secretGitHubToken}`,
+			'Accept': 'application/vnd.github.inertia-preview+json',
+			'User-Agent': 'request'
+		}
+	}
+	request( options, ( error, response, body ) => {
+		if ( ! error && response.statusCode == 200 ) {
+			const data = JSON.parse( body );
+			const prRegex = /\(#\d*\)/g;
+			const columns = _.map( data, ( column ) => {
+				const message = column.commit.message;
+				const found = message.match( prRegex );
+				if ( found && found.length ) {
+					// we have a PR number.
+					const pr = found[0];
+					const prNumber = pr.substring( 2, pr.length - 1 );
+					const parts = message.split( pr );
+					const author = getWPCOMFromAuthor( column.commit.author.name )
+					return `[#${prNumber}](https://github.com/${repo}/pull/${prNumber}) ${parts[0]}- ${author} ${column.commit.author.date}`;
+				} else {
+					return column.commit.message + " : " + column.commit.author.name;
+				}
+			} );
+			console.log( "\n" + columns.join('\n') );
+		} else {
+			console.log( '🤯' );
+			console.log( response.statusMessage );
+		}
+	} );
+}
+
 const projectColumns = ( projectId ) => {
 	const options = {
 		url: 'https://api.github.com/projects/1492664/columns',
@@ -146,6 +198,11 @@ program
 	.command( 'changelog' )
 	.description( 'create changelog' )
 	.action( makeChangelog );
+
+program
+	.command( 'commits <string> [string] [string]' )
+	.description( 'get commits from repo since date' )
+	.action( repoCommits );
 
 program.parse( process.argv );
 
