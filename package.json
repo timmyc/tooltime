@@ -19,5 +19,9 @@
     "request-promise": "^4.2.4",
     "urldecode": "^1.0.1",
     "urlencode": "^1.1.0"
+  },
+  "devDependencies": {
+    "@wordpress/prettier-config": "^0.4.0",
+    "prettier": "npm:wp-prettier@2.0.5"
   }
 }
