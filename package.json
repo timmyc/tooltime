@@ -12,6 +12,7 @@
     "tooltime": "./index.js"
   },
   "dependencies": {
+    "@octokit/rest": "^18.0.9",
     "clipboardy": "^1.2.2",
     "commander": "^2.12.1",
     "lodash": "^4.17.10",
