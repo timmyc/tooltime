@@ -8,6 +8,11 @@ const urldecode = require( 'urldecode' );
 const request = require( 'request' );
 const requestPromise = require( 'request-promise' );
 const _ = require( 'lodash' );
+const { Octokit } = require("@octokit/rest");
+const { forEach } = require('lodash');
+const octokit = new Octokit( {
+	auth: `${ process.env.GH_API_TOKEN }`
+} );
 
 const headers = {
 	'Content-Type': 'application/json;charset=UTF-8',
@@ -45,6 +50,56 @@ const authorWPCOMMap = {
 const getWPCOMFromAuthor = function ( name ) {
 	return authorWPCOMMap[ name ] ? `@${ authorWPCOMMap[ name ] }` : name;
 };
+
+const buildChangelog = ( org, repo, since ) => {
+	octokit
+		.paginate("GET /repos/:owner/:repo/commits?since=:since", {
+			owner: org,
+			repo: repo,
+			since: since  
+		} )
+		.then( async ( commits ) => {
+			console.log( 'total commits', commits.length );
+			const prRegex = /\(#\d*\)/g;
+			let rows = [];
+			_.map( commits, ( column ) => {
+				const message = column.commit.message;
+				const found = message.match( prRegex );
+				let prData;
+				if ( found && found.length ) {
+					// we have a PR number.
+					const pr = found[ 0 ];
+					const prNumber = pr.substring( 2, pr.length - 1 );
+					const parts = message.split( pr );
+					const author = getWPCOMFromAuthor(
+						column.commit.author.name
+					);
+					prData = {
+						prNumber: prNumber,
+						date: column.commit.author.date,
+						message: parts[0],
+						author: author
+					};
+				} else {
+					prData = {
+						prNumber: null,
+						date: column.commit.author.date,
+						message: column.commit.message,
+						author: column.commit.author.name
+					}
+				}
+				if ( prData.author != 'renovate[bot]' && prData.prNumber ) {
+					rows.push( prData );
+				}
+			} );
+			return rows;
+		} )
+		.then( ( final ) => {
+			forEach( final, (commit ) => {
+				console.log( `${ commit.message } [#${ commit.prNumber }](https://github.com/${org}/${ repo }/pull/${ commit.prNumber })` );
+			} );
+		} );
+}
 
 const repoCommits = ( repo, since, until ) => {
 	console.log( 'since', since );
@@ -214,6 +269,11 @@ program
 	.command( 'commits <string> [string] [string]' )
 	.description( 'get commits from repo since date' )
 	.action( repoCommits );
+
+program
+	.command( 'changelog <string> <string> <string>' )
+	.description( 'get commits from repo since date' )
+	.action( buildChangelog );
 
 program.parse( process.argv );
 
