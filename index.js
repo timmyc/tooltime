@@ -40,7 +40,7 @@ const authorWPCOMMap = {
 	'Bec Scott': 'becdetat',
 	'Paul Sealock': 'psealk',
 	'Matt Sherman': 'mattormeeple',
-	'Sam Seay': 'samuelseay',
+	'Sam Seay': 'samueljseay',
 };
 const getWPCOMFromAuthor = function ( name ) {
 	return authorWPCOMMap[ name ] ? `@${ authorWPCOMMap[ name ] }` : name;
