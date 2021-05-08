@@ -14,7 +14,7 @@
   "dependencies": {
     "clipboardy": "^1.2.2",
     "commander": "^2.12.1",
-    "lodash": "^4.17.10",
+    "lodash": "^4.17.21",
     "request": "^2.87.0",
     "request-promise": "^4.2.4",
     "urldecode": "^1.0.1",
